@@ -35,6 +35,7 @@ back till your whole body is in view; point and close your fist to press. Home â
 ```bash
 npm run dev      # http://localhost:5180 â€” add ?sim to play with the mouse, no camera
 npm run check    # input-maths + streak asserts, then tsc
+npm run fit      # after a build: every menu button fits 16:9 / 16:10 in headless Chrome (see tools/fit.mjs)
 ```
 
 How I serve it at home (both serve the same `dist/`; run `npm run build` to publish a change, nothing restarts):
