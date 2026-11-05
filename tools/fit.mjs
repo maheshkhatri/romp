@@ -5,7 +5,8 @@
 //   npm run build && npm run fit           serve dist/ with `vite preview`, open it in headless Chrome with ?sim (no camera),
 //                                          and at 1280x720, 1280x800, 1920x1080 and 1024x768 check Home (Solo, Together,
 //                                          Take turns), Tracking, Stats and Badges: no screen scrolls, and every button and
-//                                          table row lies inside the viewport. Exits 1 and lists what spills if anything does.
+//                                          table row lies inside the viewport, and no game tile clips its own words.
+//                                          Exits 1 and lists what spills if anything does.
 //   node tools/fit.mjs --url http://…      check a server that is already running instead
 //   CHROME=/path/to/chrome                 pick the browser (default: the first of google-chrome, chromium, … on PATH)
 import { spawn, execFileSync } from 'node:child_process';
@@ -54,7 +55,7 @@ const press = async (text) => {
   if (!ok) throw new Error(`no button "${text}"`);
   await sleep(900); // past the screen-in and card-in animations, which move things while they play
 };
-// What spills: the screen scrolls, or a button or table row is not wholly inside the viewport.
+// What spills: the screen scrolls, a button or table row is not wholly inside the viewport, or a tile's words poke out of its box.
 const spills = () => js(`(() => {
   const s = document.querySelector('.screen'), bad = [];
   if (s.scrollHeight > s.clientHeight + 1) bad.push('screen scrolls ' + s.scrollHeight + ' > ' + s.clientHeight);
@@ -62,6 +63,14 @@ const spills = () => js(`(() => {
     const r = el.getBoundingClientRect();
     if (r.top < -0.5 || r.left < -0.5 || r.bottom > innerHeight + 0.5 || r.right > innerWidth + 0.5)
       bad.push('"' + el.textContent.trim().slice(0, 24) + '" at ' + Math.round(r.left) + ',' + Math.round(r.top) + '-' + Math.round(r.right) + ',' + Math.round(r.bottom));
+  }
+  for (const card of s.querySelectorAll('button.card')) {
+    const c = card.getBoundingClientRect();
+    for (const el of card.querySelectorAll(':scope > :not(.icon)')) {
+      const r = el.getBoundingClientRect();
+      if (r.top < c.top + card.clientTop - 0.5 || r.bottom > c.bottom - card.clientTop + 0.5 || r.left < c.left + card.clientLeft - 0.5 || r.right > c.right - card.clientLeft + 0.5)
+        bad.push('"' + card.textContent.trim().slice(0, 24) + '" clips its "' + el.textContent.trim().slice(0, 16) + '"');
+    }
   }
   return bad;
 })()`);
