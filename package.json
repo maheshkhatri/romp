@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "check": "node src/check.ts && tsc",
-    "play": "vite preview --host --port 4173"
+    "play": "vite preview --host --port 4173",
+    "fit": "node tools/fit.mjs"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.20.0",

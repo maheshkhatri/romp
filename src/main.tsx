@@ -398,7 +398,7 @@ function App() {
         </div>
       )}
       {screen.at === 'home' && (
-        <div className="screen">
+        <div className="screen home">
           <div className="row">
             <Logo />
             <p className="dim num grow" style={{ paddingLeft: '1rem' }}><Fps /></p>
@@ -539,68 +539,73 @@ function App() {
         <div className="screen">
           <TrackingView />
           <div className="row"><h1 className="grow">🎯 Tracking</h1><button className="ghost" onClick={() => go({ at: 'home' })}>← Back</button></div>
-          <div className="panel" style={{ maxWidth: '46rem' }}>
-            <p className="num"><Fps /></p>
-            <p className="dim num">Camera {track.camera || '—'}</p>
-            <p className="dim num"><TrackerDetail /></p>
-            <p className="dim">Hold a hand still: the yellow scribble behind the dot is the tracking noise. Wave fast: a smeared, lagging trail means motion blur — add light, or try Sharp motion.</p>
-            <div className="row">
-              <span className="label">Your look</span>
-              <div className="seg">
-                <button aria-pressed={tuning.look === 'shadow'} onClick={() => setTracker('romp.look', 'shadow')}>Shadow</button>
-                <button aria-pressed={tuning.look === 'camera'} onClick={() => setTracker('romp.look', 'camera')}>Camera</button>
-                <button aria-pressed={tuning.look === 'mirror'} onClick={() => setTracker('romp.look', 'mirror')}>Mirror</button>
+          {/* Two columns so every row fits one 16:9 screen (the hand cursor cannot scroll); Measure sits near the top. */}
+          <div className="panel tracking">
+            <div className="col">
+              <p className="num"><Fps /></p>
+              <p className="dim num">Camera {track.camera || '—'}</p>
+              <p className="dim num"><TrackerDetail /></p>
+              <p className="dim">Hold a hand still: the yellow scribble behind the dot is the tracking noise. Wave fast: a smeared, lagging trail means motion blur — add light, or try Sharp motion.</p>
+              <div className="row">
+                <span className="label">Delay</span>
+                <button onClick={calibrate}>Measure ({Math.round(tuning.unseen * 1000)} ms)</button>
+                <span className="dim">{delay || 'Screen + camera delay. The screen will flash slowly for 12 s.'}</span>
               </div>
-              <span className="dim">In full-body games. Shadow: you as a figure of light, hands and feet glowing — free, and the same for two players. Camera: your own picture lifted out of the room (one player; costs the tracker speed, and switches back to Shadow by itself if it cannot keep up). Mirror: the game played over your whole room, dimmed, with you in the light.</span>
-            </div>
-            <div className="row">
-              <span className="label">Model</span>
-              <div className="seg">
-                <button aria-pressed={tuning.model === 'full'} onClick={() => setTracker('romp.model', 'full')}>Precise</button>
-                <button aria-pressed={tuning.model === 'lite'} onClick={() => setTracker('romp.model', 'lite')}>Fast</button>
+              <div className="row">
+                <span className="label">Tuning</span>
+                <button disabled={taping.startsWith('Rec')} onClick={tape}>Record 12 s</button>
+                <span className="dim">{taping || 'Sends raw tracking to the build machine.'}</span>
+              </div>
+              <div className="row">
+                <span className="label">Camera speed</span>
+                <div className="seg">
+                  <button aria-pressed={tuning.fastCam} onClick={() => setTracker('romp.cam', 'fastest')}>Fastest</button>
+                  <button aria-pressed={!tuning.fastCam} onClick={() => setTracker('romp.cam', 'standard')}>Standard</button>
+                </div>
+                <span className="dim">60 fps, if the camera can.</span>
+              </div>
+              <div className="row">
+                <span className="label">Frames</span>
+                <div className="seg">
+                  <button aria-pressed={tuning.direct} onClick={() => setTracker('romp.frames', 'direct')}>Direct</button>
+                  <button aria-pressed={!tuning.direct} onClick={() => setTracker('romp.frames', 'copied')}>Copied</button>
+                </div>
+                <span className="dim">Compare the ms above.</span>
               </div>
             </div>
-            <div className="row">
-              <span className="label">Press with</span>
-              <div className="seg">
-                <button aria-pressed={pressMode() === 'fist'} onClick={() => setTracker('romp.press', 'fist')}>Fist</button>
-                <button aria-pressed={pressMode() === 'hold'} onClick={() => setTracker('romp.press', 'hold')}>Hold still</button>
+            <div className="col">
+              <div className="row">
+                <span className="label">Your look</span>
+                <div className="seg">
+                  <button aria-pressed={tuning.look === 'shadow'} onClick={() => setTracker('romp.look', 'shadow')}>Shadow</button>
+                  <button aria-pressed={tuning.look === 'camera'} onClick={() => setTracker('romp.look', 'camera')}>Camera</button>
+                  <button aria-pressed={tuning.look === 'mirror'} onClick={() => setTracker('romp.look', 'mirror')}>Mirror</button>
+                </div>
+                <span className="dim">In full-body games. Shadow: you as a figure of light, hands and feet glowing — free, and the same for two players. Camera: your own picture lifted out of the room (one player; costs the tracker speed, and switches back to Shadow by itself if it cannot keep up). Mirror: the game played over your whole room, dimmed, with you in the light.</span>
               </div>
-              <span className="dim">Close your fist over a button.</span>
-            </div>
-            <div className="row">
-              <span className="label">Sharp motion</span>
-              <div className="seg">
-                <button aria-pressed={!tuning.sharp} onClick={() => setTracker('romp.sharp', 'off')}>Off</button>
-                <button aria-pressed={tuning.sharp} onClick={() => setTracker('romp.sharp', 'on')}>On</button>
+              <div className="row">
+                <span className="label">Model</span>
+                <div className="seg">
+                  <button aria-pressed={tuning.model === 'full'} onClick={() => setTracker('romp.model', 'full')}>Precise</button>
+                  <button aria-pressed={tuning.model === 'lite'} onClick={() => setTracker('romp.model', 'lite')}>Fast</button>
+                </div>
               </div>
-              <span className="dim">Caps the shutter at 16 ms: less blur, steady 30 fps.</span>
-            </div>
-            <div className="row">
-              <span className="label">Camera speed</span>
-              <div className="seg">
-                <button aria-pressed={tuning.fastCam} onClick={() => setTracker('romp.cam', 'fastest')}>Fastest</button>
-                <button aria-pressed={!tuning.fastCam} onClick={() => setTracker('romp.cam', 'standard')}>Standard</button>
+              <div className="row">
+                <span className="label">Press with</span>
+                <div className="seg">
+                  <button aria-pressed={pressMode() === 'fist'} onClick={() => setTracker('romp.press', 'fist')}>Fist</button>
+                  <button aria-pressed={pressMode() === 'hold'} onClick={() => setTracker('romp.press', 'hold')}>Hold still</button>
+                </div>
+                <span className="dim">Close your fist over a button.</span>
               </div>
-              <span className="dim">60 fps, if the camera can.</span>
-            </div>
-            <div className="row">
-              <span className="label">Frames</span>
-              <div className="seg">
-                <button aria-pressed={tuning.direct} onClick={() => setTracker('romp.frames', 'direct')}>Direct</button>
-                <button aria-pressed={!tuning.direct} onClick={() => setTracker('romp.frames', 'copied')}>Copied</button>
+              <div className="row">
+                <span className="label">Sharp motion</span>
+                <div className="seg">
+                  <button aria-pressed={!tuning.sharp} onClick={() => setTracker('romp.sharp', 'off')}>Off</button>
+                  <button aria-pressed={tuning.sharp} onClick={() => setTracker('romp.sharp', 'on')}>On</button>
+                </div>
+                <span className="dim">Caps the shutter at 16 ms: less blur, steady 30 fps.</span>
               </div>
-              <span className="dim">Compare the ms above.</span>
-            </div>
-            <div className="row">
-              <span className="label">Delay</span>
-              <button onClick={calibrate}>Measure ({Math.round(tuning.unseen * 1000)} ms)</button>
-              <span className="dim">{delay || 'Screen + camera delay. The screen will flash slowly for 12 s.'}</span>
-            </div>
-            <div className="row">
-              <span className="label">Tuning</span>
-              <button disabled={taping.startsWith('Rec')} onClick={tape}>Record 12 s</button>
-              <span className="dim">{taping || 'Sends raw tracking to the build machine.'}</span>
             </div>
           </div>
         </div>
