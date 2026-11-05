@@ -89,17 +89,21 @@ button.giant::before { content: ''; position: absolute; inset: -0.2rem; border-r
 .xpbar i { display: block; height: 100%; border-radius: 1rem; background: linear-gradient(90deg, var(--yellow), var(--orange)); animation: fill 1200ms 400ms cubic-bezier(0.2, 0, 0, 1) both; }
 
 /* ---- Game tiles ---- */
-.cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1.1rem; }
+/* Every screen is fixed and the hand cursor cannot scroll, so the library fills what is left of the screen: 6 x 3 tiles
+   (17 games), rows sharing the height. The home screen keeps clear of the presence box in the bottom-left corner. */
+.screen.home { padding-bottom: 5.2rem; }
+.cards { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); grid-template-rows: repeat(3, minmax(0, 1fr)); gap: 0.7rem; }
 button.card {
-  position: relative; overflow: hidden; text-align: left; min-width: 0; min-height: 12.6rem; padding: 1.2rem 1.4rem; border-radius: 1.7rem; border: 0.18rem solid rgba(255, 255, 255, 0.28);
-  background: linear-gradient(140deg, var(--a), var(--b)); display: flex; flex-direction: column; justify-content: flex-end; gap: 0.15rem;
+  position: relative; overflow: hidden; text-align: left; min-width: 0; min-height: 0; padding: 0.5rem 1.1rem; border-radius: 1.7rem; border: 0.18rem solid rgba(255, 255, 255, 0.28);
+  background: linear-gradient(140deg, var(--a), var(--b)); display: flex; flex-direction: column; justify-content: flex-end; gap: 0.1rem;
   animation: card-in 480ms var(--bounce) both; animation-delay: calc(var(--i) * 45ms);
 }
 @keyframes card-in { from { opacity: 0; transform: translateY(2.5rem) scale(0.9); } }
-button.card b { font-size: 2.1rem; font-weight: 700; line-height: 1; text-shadow: 0 0.15rem 0 rgba(0, 0, 0, 0.3); }
-button.card small { font-size: 1rem; font-weight: 500; color: rgba(255, 255, 255, 0.92); line-height: 1.25; }
-button.card .icon { position: absolute; right: 0.7rem; top: 0.4rem; font-size: 5.6rem; line-height: 1; transform: rotate(8deg); transition: transform 300ms var(--bounce); filter: drop-shadow(0 0.3rem 0 rgba(0, 0, 0, 0.25)); }
-button.card .meta { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.3rem; font-size: 1rem; }
+button.card b { font-size: 1.9rem; font-weight: 700; line-height: 1; text-shadow: 0 0.15rem 0 rgba(0, 0, 0, 0.3); }
+button.card small { font-size: 0.95rem; font-weight: 500; color: rgba(255, 255, 255, 0.92); line-height: 1.2; }
+button.card .icon { position: absolute; right: 0.6rem; top: 0.3rem; font-size: 3.8rem; line-height: 1; transform: rotate(8deg); transition: transform 300ms var(--bounce); filter: drop-shadow(0 0.3rem 0 rgba(0, 0, 0, 0.25)); }
+button.card > :not(.icon) { position: relative; } /* the words paint over the icon on the shorter tile */
+button.card .meta { display: flex; align-items: center; gap: 0.5rem; font-size: 0.95rem; }
 button.card .pill { background: rgba(0, 0, 0, 0.32); border-radius: 1rem; padding: 0.05rem 0.65rem; font-weight: 600; }
 button.card::after { content: ''; position: absolute; inset: 0; background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.4) 50%, transparent 65%); transform: translateX(-120%); }
 button.card:hover, button.card.hot { transform: translateY(-0.5rem) scale(1.07) rotate(-1.2deg); border-color: #fff; background: linear-gradient(140deg, var(--a), var(--b)); box-shadow: 0 0.9rem 0 rgba(0, 0, 0, 0.35), 0 0 3rem var(--a); z-index: 2; }
@@ -139,9 +143,12 @@ button.node small { font-size: 0.8rem; font-weight: 500; } button.node[aria-pres
 @keyframes confetti { to { transform: translate(var(--sway), 110vh) rotate(var(--spin)); opacity: 0.9; } }
 
 /* ---- Stats and badges ---- */
+/* Tracking: two columns, so every setting fits one 16:9 screen. */
+.panel.tracking { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem 2.2rem; }
 .split { display: grid; grid-template-columns: 1fr 1fr; gap: 1.6rem; align-items: start; }
 table { border-collapse: collapse; width: 100%; font-size: 1.2rem; }
-th, td { text-align: left; padding: 0.5rem 0.9rem; border-bottom: 1px solid var(--panel-line); }
+/* Tight rows: the best-score table lists every game and must fit one 16:9 screen. */
+th, td { text-align: left; padding: 0.28rem 0.9rem; border-bottom: 1px solid var(--panel-line); }
 th { color: var(--ink-dim); font-weight: 500; font-size: 1rem; } td.lead, .lead { color: var(--lime); font-weight: 700; }
 .badges { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.9rem; }
 .badge { border-radius: 1.2rem; padding: 0.9rem 1rem; background: rgba(0, 0, 0, 0.28); border: 1px solid var(--panel-line); color: var(--ink-dim); font-size: 1.1rem; display: flex; flex-direction: column; gap: 0.2rem; animation: card-in 420ms var(--bounce) both; animation-delay: calc(var(--i) * 30ms); }
