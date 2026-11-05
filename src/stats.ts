@@ -18,7 +18,7 @@ export function summary(sessions: Session[], who: string, now = Date.now()) {
   const byDay = new Map<string, number>();
   for (const s of mine) byDay.set(day(s.t), (byDay.get(day(s.t)) ?? 0) + s.points);
   const best: Record<string, number> = {};
-  for (const s of mine) if (!s.variant) best[s.game] = Math.max(best[s.game] ?? 0, s.score); // the standard solo/versus round only
+  for (const s of mine) if (!s.variant) best[s.game] = Math.max(best[s.game] ?? 0, Math.round(s.score)); // rounded so rows saved before scores were whole read cleanly; the standard solo/versus round only
 
   // Consecutive goal-days ending today — or yesterday, so the streak survives until tonight.
   const hit = (d: Date) => (byDay.get(day(+d)) ?? 0) >= DAY_GOAL;

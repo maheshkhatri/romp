@@ -337,7 +337,8 @@ function App() {
 
   // Two people on stage play as one team where the game knows how; what they score is then kept apart from solo scores.
   const teamOf = (game: Game) => n === 2 && !!game.team && (coop || !!game.crew);
-  const finish = (run: Round, gameScores: number[], gameNotes: string[][] = []) => {
+  const finish = (run: Round, rawScores: number[], gameNotes: string[][] = []) => {
+    const gameScores = rawScores.map(Math.round); // some games score by the frame (Forge) or with a team boost (Slice): store and show whole numbers
     const team = teamOf(run.game), variant = variantOf(run.mode, team);
     report('round', { game: run.game.id, stage: run.stage, mode: run.mode, team, players: n, glow: effects.on, look: tuning.look, cutMs: +cutout.ms.toFixed(1), cutDropped: cutout.dropped, ...paceSummary() });
     const earned = gameScores.map((_, i) => Math.round((players[i].energy - energy0.current[i]) / tuning.energyPerPoint));

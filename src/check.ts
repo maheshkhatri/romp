@@ -5,7 +5,7 @@ import { summary, DAY_GOAL } from './stats.ts';
 import { chart } from './chart.ts';
 import { SONGS } from './song.ts';
 import { chopper, jacker, squatDepth, stepper } from './reps.ts';
-import { badgesOf, bestStars, dailyChallenges, levelOf, sessionXp, starGoals, starsFor, unlockedStage, variantOf, xpOf } from './meta.ts';
+import { badgesOf, bestScore, bestStars, dailyChallenges, levelOf, sessionXp, starGoals, starsFor, unlockedStage, variantOf, xpOf } from './meta.ts';
 
 // A body: shoulders 0.1 apart (camera frame, aspect 1) centred at cx, wrists wherever we put them.
 const body = (cx: number, sw = 0.1, wrist = { x: cx, y: 0.5 }) => {
@@ -221,3 +221,10 @@ for (const song of SONGS) {
 }
 
 console.log('ok');
+
+// Scores read as whole numbers, even rows saved raw before finish rounded them (Forge once stored 106.99999999999898).
+{
+  const raw = [{ t: Date.now(), game: 'forge', who: 'A', score: 106.99999999999898, points: 0, stage: 1 }];
+  assert.equal(summary(raw, 'A').best.forge, 107);
+  assert.equal(bestScore(raw, 'A', 'forge', 1), 107);
+}
