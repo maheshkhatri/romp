@@ -2,6 +2,7 @@
 // Games read the mutable `players` array every frame; nothing here touches React.
 import type { NormalizedLandmark, PoseLandmarker } from '@mediapipe/tasks-vision';
 import { fetchAll, type Progress } from './download.ts';
+import { reloadForUpdate } from './updated.ts';
 
 // x, y: -1..1 inside the player's own zone, y up. vx, vy: zone-units per second, measured at camera rate.
 // t: when the camera frame behind this reading was captured (performance.now clock) — the renderer predicts forward from it.
@@ -319,7 +320,8 @@ export async function startPose(video: HTMLVideoElement, onStep: (s: StartStep) 
   track.camera = await tuneCamera(cam, video);
   const model = `/models/pose_landmarker_${tuning.model}.task`;
   const why = await startWorker(video, model, cam, onStep).catch(() => 'failed' as const);
-  if (why) { fallback.why = why; await startInline(video, model, onStep); }
+  if (why === 'gone' && reloadForUpdate()) return new Promise<never>(() => {});
+  if (why) { fallback.why = why === 'gone' ? 'failed' : why; await startInline(video, model, onStep); }
 }
 
 // A smeared hand cannot be tracked accurately by any model. Measured on the Tab S7 (2026-09-20, adb + DevTools): left
@@ -398,22 +400,23 @@ let worker: Worker | undefined;
 // A slow connection that is still delivering bytes is never abandoned; one that has stalled is.
 const STALL_MS = 25000;
 // Resolves to '' once the worker is tracking, or to why it is not (and the page falls back to tracking inline).
-async function startWorker(video: HTMLVideoElement, model: string, cam: MediaStreamTrack, onStep: (s: StartStep) => void): Promise<'' | 'unsupported' | 'stalled' | 'failed'> {
+async function startWorker(video: HTMLVideoElement, model: string, cam: MediaStreamTrack, onStep: (s: StartStep) => void): Promise<'' | 'unsupported' | 'stalled' | 'failed' | 'gone'> {
   if (typeof OffscreenCanvas === 'undefined' || typeof createImageBitmap === 'undefined') return 'unsupported';
   const w = new Worker(new URL('./pose.worker.ts', import.meta.url));
-  const ready = await new Promise<string | 'stalled' | null>((resolve) => {
-    let giveUp = 0;
+  const ready = await new Promise<string | 'stalled' | 'gone' | null>((resolve) => {
+    let giveUp = 0, heard = false;
     const wait = () => { clearTimeout(giveUp); giveUp = window.setTimeout(() => resolve('stalled'), STALL_MS); };
     wait();
-    w.onerror = () => (clearTimeout(giveUp), resolve(null));
+    w.onerror = () => (clearTimeout(giveUp), resolve(heard ? null : 'gone'));
     w.onmessage = (e) => {
+      heard = true;
       const m = e.data;
       if (m.type === 'progress') return wait(), onStep(m.step === 'download' ? { step: 'download', got: m.got, total: m.total } : { step: 'start' });
       if (m.type === 'ready' || m.type === 'failed') clearTimeout(giveUp), resolve(m.type === 'ready' ? m.delegate : null);
     };
     w.postMessage({ type: 'init', origin: location.origin, timeOrigin: performance.timeOrigin, model, n: nPlayers });
   });
-  if (!ready || ready === 'stalled') return w.terminate(), ready ? 'stalled' : 'failed';
+  if (!ready || ready === 'stalled' || ready === 'gone') return w.terminate(), ready || 'failed';
   worker = w;
   camTrack = cam;
   perf.delegate = `${ready} worker`;

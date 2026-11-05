@@ -9,6 +9,8 @@ import { DAY_GOAL, load, save, summary, type Session } from './stats.ts';
 import { BADGES, CHALLENGE_XP, STAGES, badgesOf, bestScore, bestStars, dailyChallenges, levelOf, sessionXp, starGoals, starsFor, totalStars, unlockedStage, variantOf, xpOf } from './meta.ts';
 import { loadAudio } from './audio.ts';
 import { PLAYER_COLORS, Shell, audio, effects, jingle, paceSummary, play, say, sfx, type Playable } from './stage.tsx';
+// Vite's own signal that a chunk's preload failed. Handled here, it does not also surface as an error.
+addEventListener('vite:preloadError', (e) => { if (reloadForUpdate()) e.preventDefault(); });
 // Each game is its own chunk: its code (and, for two of them, the physics engine) is fetched the first time it is played.
 const Slice = play(() => import('./games/slice.ts')), Run = play(() => import('./games/run.ts')), Jab = play(() => import('./games/jab.ts')), Beat = play(() => import('./games/beat.ts'));
 const ShapeUp = play(() => import('./games/shapeup.ts')), Goalie = play(() => import('./games/goalie.ts')), Smash = play(() => import('./games/smash.ts'));

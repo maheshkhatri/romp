@@ -23,6 +23,3 @@ export function reloadForUpdate() {
   setTimeout(() => location.reload(), 1200);
   return true;
 }
-
-// Vite's own signal that a chunk's preload failed. Handled here, it does not also surface as an error.
-addEventListener('vite:preloadError', (e) => { if (reloadForUpdate()) e.preventDefault(); });
