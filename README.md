@@ -1,5 +1,7 @@
 # Romp
 
+Romp by [@yem.cube on Instagram](https://www.instagram.com/yem.cube)
+
 **Your body is the controller.** 17 camera-tracked motion games (fitness, rhythm, pose and arcade) that run in Chrome on
 an old Android tablet and play on your TV over a USB-C → HDMI cable. No console, no subscription, no app store.
 
