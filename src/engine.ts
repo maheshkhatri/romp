@@ -14,6 +14,7 @@ import {
 import { cutout, feed, players, sim, tuning } from './pose.ts';
 import { CUT } from './cut.ts';
 import { effects, pace } from './pace.ts';
+import { ROOT } from './base.ts';
 
 export const W = 16, H = 9;
 export type View = { position: [number, number, number]; fov: number; near: number; far: number; lookAt?: [number, number, number] };
@@ -669,7 +670,7 @@ export async function clearing(scene: Scene, dusk: boolean) {
   scene.sky(haze); scene.fog(haze, 26, 75); scene.ambient(dusk ? '#ffd9b8' : '#fff6e5', dusk ? 0.7 : 0.9);
   sky(scene, false, 0.5, ROOM, dusk);
   ground(scene, { tracks: [], lane: 1, city: false, fog: haze, fogFrom: 26, fogTo: 75, size: [260, 170], z: -70, y: FLOOR });
-  const N = '/assets/nature/', C = '/assets/camp/', kinds = await Promise.all([fitted(N + 'tree_oak.glb', 11, true), fitted(N + 'tree_pineTallA.glb', 13, true), fitted(N + 'tree_detailed.glb', 10, true), fitted(C + 'tree-tall.glb', 12, true), fitted(N + 'tree_fat.glb', 9, true), fitted(N + 'plant_bushLarge.glb', 2.6, true), fitted(N + 'rock_largeA.glb', 2.4, true), fitted(N + 'grass_large.glb', 1.2, true)]);
+  const N = `${ROOT}/assets/nature/`, C = `${ROOT}/assets/camp/`, kinds = await Promise.all([fitted(N + 'tree_oak.glb', 11, true), fitted(N + 'tree_pineTallA.glb', 13, true), fitted(N + 'tree_detailed.glb', 10, true), fitted(C + 'tree-tall.glb', 12, true), fitted(N + 'tree_fat.glb', 9, true), fitted(N + 'plant_bushLarge.glb', 2.6, true), fitted(N + 'rock_largeA.glb', 2.4, true), fitted(N + 'grass_large.glb', 1.2, true)]);
   // Trees in a horseshoe behind the play plane — dense at the back, open toward the camera — and small things scattered between.
   for (let i = 0; i < 46; i++) {
     const big = i < 30, a = (i / (big ? 30 : 16)) * Math.PI, r = big ? 17 + ((i * 7) % 11) * 1.6 : 8 + ((i * 5) % 7) * 1.5, e = kinds[big ? i % 5 : 5 + (i % 3)].clone() as Entity;

@@ -6,7 +6,7 @@
 <script type="module">
 // Where does the delay live? Measures, on this device: the camera's real delivery rate and delay, the camera+screen
 // latency (by flashing the screen and watching the picture brighten), and the pose model in every configuration.
-import { FilesetResolver, PoseLandmarker } from '/wasm/vision_bundle.mjs';
+import { FilesetResolver, PoseLandmarker } from './wasm/vision_bundle.mjs';
 const $ = (id) => document.getElementById(id), status = (t) => ($('status').textContent = t), R = { at: new Date().toISOString(), ua: navigator.userAgent };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms)), med = (a) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)] ?? null, p90 = (a) => [...a].sort((x, y) => x - y)[Math.floor(a.length * 0.9)] ?? null;
 const r1 = (v) => (v == null ? v : +v.toFixed(1)), skip = new URLSearchParams(location.search);
@@ -63,11 +63,11 @@ try {
 
   // D. the model, every way it can be run
   R.model = {};
-  const fileset = await FilesetResolver.forVisionTasks('/wasm');
+  const fileset = await FilesetResolver.forVisionTasks(new URL('wasm', location.href).href);
   for (const size of ['lite', 'full']) for (const delegate of ['GPU', 'CPU']) {
     status(`Model ${size} on ${delegate}…`);
     try {
-      const lm = await PoseLandmarker.createFromOptions(fileset, { baseOptions: { modelAssetPath: `/models/pose_landmarker_${size}.task`, delegate }, runningMode: 'VIDEO', numPoses: 1 });
+      const lm = await PoseLandmarker.createFromOptions(fileset, { baseOptions: { modelAssetPath: new URL(`models/pose_landmarker_${size}.task`, location.href).href, delegate }, runningMode: 'VIDEO', numPoses: 1 });
       const ms = []; let found = 0;
       for (let k = 0; k < (delegate === 'CPU' ? 25 : 45); k++) { const { now } = await frame(v); const t = performance.now(), res = lm.detectForVideo(v, now); if (k >= 5) { ms.push(performance.now() - t); found += res.landmarks.length ? 1 : 0; } }
       lm.close();

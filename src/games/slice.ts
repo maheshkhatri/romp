@@ -11,6 +11,7 @@ import { hardness } from '../meta.ts';
 import { sim } from '../pose.ts';
 import { backdrop, clippable, fitted, flat, instanced, node, setClip, shapes, show, tint } from '../engine.ts';
 import { H, PLAYER_COLORS, bestLine, bursts as makeBursts, comboText, divider, hands as makeHands, hitSound, hitStop, music, round, say, scoreHud, segDist, sfx, swept, zoneHalf, zoneX, type Game, type StageHand } from '../kit.ts';
+import { ROOT } from '../base.ts';
 
 const R = 0.75, GRAVITY = -9, FRENZY = 10, FINALE = 4.5, DEG = 180 / Math.PI;
 const SLICE_SPEED = 5, CRIT_SPEED = 12.5; // stage units/s a hand must move to cut, and to cut hard — tune on device
@@ -60,7 +61,7 @@ const pick = <T,>(mix: [T, number][]) => { let r = Math.random() * mix.reduce((a
 export default async function slice({ n, stage, mode, team, best, onEnd, hud, scene }: Game) {
   const hard = hardness(stage), rules = RULES[mode as keyof typeof RULES] ?? RULES[''], length = rules.length;
   const [fruit, bomb, star, banana] = await Promise.all([
-    Promise.all(FRUIT.map((f) => fitted(`/assets/food/${f.url}.glb`, R * f.size))), fitted('/assets/kit/bomb.glb', R * 2.1), fitted('/assets/kit/star.glb', R * 1.8), fitted('/assets/food/banana.glb', R * 2.4),
+    Promise.all(FRUIT.map((f) => fitted(`${ROOT}/assets/food/${f.url}.glb`, R * f.size))), fitted(`${ROOT}/assets/kit/bomb.glb`, R * 2.1), fitted(`${ROOT}/assets/kit/star.glb`, R * 1.8), fitted(`${ROOT}/assets/food/banana.glb`, R * 2.4),
   ]);
   backdrop(scene, 'dojo');
   // Juice stays on the wall: every cut leaves a stain and a few drops that soak away over some seconds.

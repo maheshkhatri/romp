@@ -1,6 +1,7 @@
 // Camera → MediaPipe Pose → up to two players with body-relative hands.
 // Games read the mutable `players` array every frame; nothing here touches React.
 import type { NormalizedLandmark, PoseLandmarker } from '@mediapipe/tasks-vision';
+import { ROOT } from './base.ts';
 
 // x, y: -1..1 inside the player's own zone, y up. vx, vy: zone-units per second, measured at camera rate.
 // t: when the camera frame behind this reading was captured (performance.now clock) — the renderer predicts forward from it.
@@ -393,7 +394,7 @@ async function startWorker(video: HTMLVideoElement, model: string, cam: MediaStr
     const giveUp = setTimeout(() => resolve(null), 25000);
     w.onerror = () => resolve(null);
     w.onmessage = (e) => (e.data.type === 'ready' || e.data.type === 'failed') && (clearTimeout(giveUp), resolve(e.data.type === 'ready' ? e.data.delegate : null));
-    w.postMessage({ type: 'init', origin: location.origin, timeOrigin: performance.timeOrigin, model, n: nPlayers });
+    w.postMessage({ type: 'init', origin: location.origin + ROOT, timeOrigin: performance.timeOrigin, model, n: nPlayers });
   });
   if (!ready) return w.terminate(), false;
   worker = w;
@@ -502,7 +503,7 @@ function pairUp(on: boolean) {
     track.fps2 += (1000 / (now - last) - track.fps2) * 0.1; track.model2 += (m.ms - track.model2) * 0.1;
     last = now;
   };
-  w.postMessage({ type: 'init', origin: location.origin, timeOrigin: performance.timeOrigin, model: '/models/pose_landmarker_lite.task', n: 1, cpu: true });
+  w.postMessage({ type: 'init', origin: location.origin + ROOT, timeOrigin: performance.timeOrigin, model: '/models/pose_landmarker_lite.task', n: 1, cpu: true });
 }
 
 // A square around the pointing hand's palm (1.8 shoulder-widths across: the whole hand with margin, whatever the
@@ -536,9 +537,9 @@ export function record(seconds: number) {
 // Fallback: the original main-thread path, for browsers where the worker route is not available.
 async function startInline(video: HTMLVideoElement, model: string) {
   const { FilesetResolver, PoseLandmarker } = await import('@mediapipe/tasks-vision');
-  const fileset = await FilesetResolver.forVisionTasks('/wasm');
+  const fileset = await FilesetResolver.forVisionTasks(`${ROOT}/wasm`);
   const make = (delegate: 'GPU' | 'CPU') =>
-    PoseLandmarker.createFromOptions(fileset, { baseOptions: { modelAssetPath: model, delegate }, runningMode: 'VIDEO', numPoses: nPlayers })
+    PoseLandmarker.createFromOptions(fileset, { baseOptions: { modelAssetPath: ROOT + model, delegate }, runningMode: 'VIDEO', numPoses: nPlayers })
       .then((l) => ((perf.delegate = `${delegate} inline`), l));
   landmarker = await make('GPU').catch(() => make('CPU'));
   let last = performance.now();
