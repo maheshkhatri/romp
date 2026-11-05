@@ -445,6 +445,7 @@ function App() {
               </button>
             ))}
           </div>
+          <p className="dim" style={{ textAlign: 'center' }}>Romp by <a href="https://www.instagram.com/yem.cube" target="_blank" rel="noreferrer">@yem.cube on Instagram</a></p>
         </div>
       )}
       {screen.at === 'brief' && (() => {
