@@ -194,6 +194,12 @@ assert.ok(daily[0].have === Math.min(daily[0].goal, 120));
   play(0.5, (k) => person(0.75, 0.9 * k)); // and a squat from the new spot reads as one
   play(1, () => person(0.75, 0.9));
   assert.ok(squatDepth(pl.lift) > 0.8, `squat after the step reads lift ${pl.lift.toFixed(2)}`);
+  // A dropped frame mid-squat re-learns the squat as standing height; standing up from it reads higher, never as a squat.
+  now += 1000 / 30; apply([], 1, now);
+  play(1, () => person(0.75, 0.9));
+  play(0.5, (k) => person(0.75, 0.9 * (1 - k)));
+  play(4.5, () => person(0.75));
+  assert.ok(Math.abs(pl.lift) < tuning.standBand, `standing height learned mid-squat was not re-learned (lift ${pl.lift.toFixed(2)})`);
   apply([], 1, now + 33); // gone: leave the tracker as it was found
 }
 

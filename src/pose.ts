@@ -263,7 +263,7 @@ export function apply(poses: NormalizedLandmark[][], aspect: number, now = perfo
       // ~8s) — or a step to a spot where the shoulders sit at another height in the picture, with the body the same shape.
       // So re-learn after 4s out only once the shape has said "moved" for a second. Knees out of sight: the 4s rule alone.
       // Past 15s the clock wins regardless: no game asks for a squat that long, so the shape reading must be off.
-      if (Math.abs(st.span - span) > 0.5 * Math.abs(lift)) st.bent = now; // false whenever either is NaN
+      if (lift < 0 && st.span - span > 0.5 * -lift) st.bent = now; // false whenever either is NaN
       if ((now - st.since > 4000 && now - st.bent > 1000) || now - st.since > 15000) { st.y = raw.y; st.span = span; }
     }
     pl.lift = F.lift.next(lift, dt);
