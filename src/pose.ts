@@ -416,7 +416,7 @@ async function startWorker(video: HTMLVideoElement, model: string, cam: MediaStr
     };
     w.postMessage({ type: 'init', origin: location.origin, timeOrigin: performance.timeOrigin, model, n: nPlayers });
   });
-  if (!ready || ready === 'stalled' || ready === 'gone') return w.terminate(), ready || 'failed';
+  if (!ready || ready === 'stalled' || ready === 'gone') return w.terminate(), ready === 'stalled' || ready === 'gone' ? ready : 'failed';
   worker = w;
   camTrack = cam;
   perf.delegate = `${ready} worker`;
