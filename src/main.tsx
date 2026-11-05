@@ -403,6 +403,7 @@ function App() {
           <div className="row">
             <Logo />
             <p className="dim num grow" style={{ paddingLeft: '1rem' }}><Fps /></p>
+            <p className="dim">Romp by <a href="https://www.instagram.com/yem.cube" target="_blank" rel="noreferrer" style={{ color: 'inherit' }}>@yem.cube on Instagram</a></p>
             <button className="ghost" onClick={toggleFx}>✨ Glow {fx ? 'on' : 'off'}</button>
             <button className="ghost" onClick={() => go({ at: 'tracking' })}>🎯 Tracking</button>
             <button className="ghost" onClick={() => go({ at: 'badges' })}>🏅 Badges</button>
@@ -445,7 +446,6 @@ function App() {
               </button>
             ))}
           </div>
-          <p className="dim" style={{ textAlign: 'center' }}>Romp by <a href="https://www.instagram.com/yem.cube" target="_blank" rel="noreferrer">@yem.cube on Instagram</a></p>
         </div>
       )}
       {screen.at === 'brief' && (() => {
