@@ -6,6 +6,7 @@ import { hardness } from '../meta.ts';
 import { physics } from '../physics.ts';
 import { fitted, lit, node, shapes, show, type View } from '../engine.ts';
 import { bursts as makeBursts, hands as makeHands, hitSound, music, round, scoreHud, segDist, sfx, type Game } from '../kit.ts';
+import { ROOT } from '../base.ts';
 
 const ROUND = 60, CRATES = 21, SIZE = 0.9, DECK = 0, SWING = 4; // SWING = hand speed (units/s) that counts as a hit rather than a nudge
 
@@ -13,7 +14,7 @@ export const view: View = { position: [0, 3, 8.2], fov: 50, near: 0.1, far: 100,
 
 export default async function smash({ n, stage, onEnd, hud, scene, cleanup }: Game) {
   const hard = hardness(stage);
-  const [{ RAPIER, world, step }, crate] = await Promise.all([physics(-14), fitted('/assets/kit/crate.glb', SIZE)]);
+  const [{ RAPIER, world, step }, crate] = await Promise.all([physics(-14), fitted(`${ROOT}/assets/kit/crate.glb`, SIZE)]);
   cleanup(() => world.free());
   const area = { cx: (p: number) => (n === 1 ? 0 : (p - 0.5) * 7.4), hw: 3, hh: 2.8, cy: 2.4 };
 

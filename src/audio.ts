@@ -1,6 +1,7 @@
 // Sound: CC0 samples (Kenney) for effects, an announcer voice, jingles, and a procedural music engine
 // whose layers come in as `music.intensity` rises — so the soundtrack builds with your combo.
 // Everything is scheduled on the AudioContext clock. Nothing here touches React.
+import { ROOT } from './base.ts';
 let ctx: AudioContext | undefined, master: DynamicsCompressorNode, musicBus: GainNode, fxBus: GainNode;
 export function audio() {
   if (!ctx) {
@@ -18,9 +19,9 @@ export const musicOut = () => (audio(), musicBus); // where a song (song.ts) plu
 
 const buffers = new Map<string, AudioBuffer[]>();
 export async function loadAudio() {
-  const index: Record<string, string[]> = await (await fetch('/assets/audio.json')).json();
+  const index: Record<string, string[]> = await (await fetch(`${ROOT}/assets/audio.json`)).json();
   await Promise.all(Object.entries(index).map(async ([family, files]) => {
-    const decoded = await Promise.all(files.map(async (f) => audio().decodeAudioData(await (await fetch(`/assets/${f}`)).arrayBuffer())));
+    const decoded = await Promise.all(files.map(async (f) => audio().decodeAudioData(await (await fetch(`${ROOT}/assets/${f}`)).arrayBuffer())));
     buffers.set(family, decoded);
   }));
 }

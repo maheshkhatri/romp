@@ -6,9 +6,10 @@ import { isAir, isLow, players } from '../pose.ts';
 import { hardness } from '../meta.ts';
 import { boundsOf, color, fitted, flat, glowLook, ground, instanced, instantiate, lit, node, own, shade, shapes, show, sky, type View } from '../engine.ts';
 import { PLAYER_COLORS, bursts as makeBursts, hitSound, hitStop, music, round, say, scoreHud, sfx, type Game } from '../kit.ts';
+import { ROOT } from '../base.ts';
 
 const ROUND = 75, FAR = -70, LANE = 1.7, WINDOW = 1.1, POWER_TIME = 8, DEG = 180 / Math.PI;
-const A = '/assets/kit/', C = '/assets/city/';
+const A = `${ROOT}/assets/kit/`, C = `${ROOT}/assets/city/`;
 const FOREST = { sky: '#7dd3fc', ground: '#3f6212', road: '#a8a29e', props: [A + 'tree.glb', A + 'tree-pine.glb', A + 'rocks.glb', A + 'tree.glb', A + 'mushrooms.glb', A + 'tree-pine.glb'], size: [4.5, 5.5, 1.6, 5, 1.2, 6] };
 const CITY = { sky: '#1e1b4b', ground: '#27272a', road: '#3f3f46', props: ['a', 'c', 'e', 'skyscraper-a', 'g', 'skyscraper-b'].map((b) => `${C}building-${b}.glb`), size: [7, 8, 7, 14, 8, 16] };
 
@@ -29,12 +30,12 @@ export default async function runGame({ n, stage, onEnd, hud, scene }: Game) {
   const heaven = sky(scene, night, 0.63, view), earth = ground(scene, { tracks, lane: LANE, city: night, fog: haze, fogFrom: 34, fogTo: 80, size: [220, -FAR + 60], z: FAR / 2 - 5 });
 
   // Models: every instance is a clone of one fitted original.
-  const N = '/assets/nature/', small = night ? [C + 'detail-parasol-a.glb', C + 'detail-parasol-b.glb', A + 'flag.glb', A + 'crate.glb', A + 'barrel.glb', A + 'fence-straight.glb'] : [N + 'plant_bush.glb', N + 'flower_redA.glb', N + 'grass_large.glb', N + 'plant_bushLarge.glb', N + 'flower_yellowA.glb', N + 'stump_round.glb', N + 'rock_largeA.glb', N + 'flower_purpleA.glb', N + 'log_stack.glb', N + 'mushroom_redGroup.glb', N + 'fence_simple.glb', N + 'sign.glb'];
+  const N = `${ROOT}/assets/nature/`, small = night ? [C + 'detail-parasol-a.glb', C + 'detail-parasol-b.glb', A + 'flag.glb', A + 'crate.glb', A + 'barrel.glb', A + 'fence-straight.glb'] : [N + 'plant_bush.glb', N + 'flower_redA.glb', N + 'grass_large.glb', N + 'plant_bushLarge.glb', N + 'flower_yellowA.glb', N + 'stump_round.glb', N + 'rock_largeA.glb', N + 'flower_purpleA.glb', N + 'log_stack.glb', N + 'mushroom_redGroup.glb', N + 'fence_simple.glb', N + 'sign.glb'];
   const smallSize = night ? [2.2, 2.2, 2.4, 1.2, 1.2, 1.8] : [1.5, 0.8, 0.9, 2.2, 0.8, 1.0, 1.6, 0.8, 1.8, 0.9, 1.6, 1.4];
   const distant = night ? [C + 'low-detail-building-a.glb', C + 'low-detail-building-c.glb', C + 'low-detail-building-e.glb', C + 'low-detail-building-wide-a.glb'] : [N + 'tree_oak.glb', N + 'tree_fat.glb', N + 'tree_detailed.glb', N + 'tree_pineTallA.glb'];
   const [barrel, crate, coin, star, heart, props, robots, nearProps, farProps] = await Promise.all([
     fitted(A + 'barrel.glb', 1.35, true), fitted(A + 'crate-strong.glb', 1.6, true), fitted(A + 'coin-gold.glb', 0.8), fitted(A + 'star.glb', 1.2), fitted(A + 'heart.glb', 1.2),
-    Promise.all(theme.props.map((url, i) => fitted(url, theme.size[i], true))), Promise.all(Array.from({ length: n }, () => instantiate('/assets/robot.glb'))),
+    Promise.all(theme.props.map((url, i) => fitted(url, theme.size[i], true))), Promise.all(Array.from({ length: n }, () => instantiate(`${ROOT}/assets/robot.glb`))),
     Promise.all(small.map((url, i) => fitted(url, smallSize[i], true))), Promise.all(distant.map((url, i) => fitted(url, night ? 15 + i * 3 : 9 + i * 1.5, true))),
   ]);
 
