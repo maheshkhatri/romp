@@ -1,6 +1,7 @@
 // Camera → MediaPipe Pose → up to two players with body-relative hands.
 // Games read the mutable `players` array every frame; nothing here touches React.
 import type { NormalizedLandmark, PoseLandmarker } from '@mediapipe/tasks-vision';
+import { fetchAll, type Progress } from './download.ts';
 
 // x, y: -1..1 inside the player's own zone, y up. vx, vy: zone-units per second, measured at camera rate.
 // t: when the camera frame behind this reading was captured (performance.now clock) — the renderer predicts forward from it.
@@ -298,9 +299,15 @@ export const track = { lag: 0, camera: '', camFps: 0, grabMs: 0, modelMs: 0, fra
 export const grip = { want: false, hand: 1, closed: false, curl: 0, seenAt: 0, busy: false }; // ms from camera frame to usable pose — shown next to the fps on the home screen
 
 export const feed = { video: null as HTMLVideoElement | null }; // the live camera element, for the Mirror look
-export async function startPose(video: HTMLVideoElement) {
+// What the Start screen shows while the tracker comes up: waiting for the camera, the download, then the model starting.
+export type StartStep = { step: 'camera' } | ({ step: 'download' } & Progress) | { step: 'start' };
+// Why tracking ended up on the page's own thread instead of the worker ('' = it did not): 'unsupported' (this browser
+// has no worker route), 'stalled' (the worker stopped making progress) or 'failed' (the worker could not load the model).
+export const fallback = { why: '' as '' | 'unsupported' | 'stalled' | 'failed' };
+export async function startPose(video: HTMLVideoElement, onStep: (s: StartStep) => void = () => {}) {
   feed.video = video;
   if (landmarker || worker || sim) return sim ? startSim() : undefined;
+  onStep({ step: 'camera' });
   // 1280×720: the tracker crops each person out of the frame and scales the crop to 256px. At three metres a
   // player is ~430px tall at 720p but only ~290px at 480p — the bigger frame gives the crop real detail to shrink
   // from (less sensor noise in, steadier landmarks out). 60fps is asked for, not required: if the camera can, each
@@ -311,7 +318,8 @@ export async function startPose(video: HTMLVideoElement) {
   await video.play();
   track.camera = await tuneCamera(cam, video);
   const model = `/models/pose_landmarker_${tuning.model}.task`;
-  if (!(await startWorker(video, model, cam).catch(() => false))) await startInline(video, model);
+  const why = await startWorker(video, model, cam, onStep).catch(() => 'failed' as const);
+  if (why) { fallback.why = why; await startInline(video, model, onStep); }
 }
 
 // A smeared hand cannot be tracked accurately by any model. Measured on the Tab S7 (2026-09-20, adb + DevTools): left
@@ -386,16 +394,26 @@ export function frameClock() {
 // worker, the page never touches a pixel: no copy, and no dependence on a main thread that is busy drawing the game.
 // Otherwise frames are copied out of the <video> as ImageBitmaps, one in the tracker and the newest waiting behind it.
 let worker: Worker | undefined;
-async function startWorker(video: HTMLVideoElement, model: string, cam: MediaStreamTrack) {
-  if (typeof OffscreenCanvas === 'undefined' || typeof createImageBitmap === 'undefined') return false;
+// How long the worker may go without any sign of progress (a downloaded chunk, a step done) before it is given up on.
+// A slow connection that is still delivering bytes is never abandoned; one that has stalled is.
+const STALL_MS = 25000;
+// Resolves to '' once the worker is tracking, or to why it is not (and the page falls back to tracking inline).
+async function startWorker(video: HTMLVideoElement, model: string, cam: MediaStreamTrack, onStep: (s: StartStep) => void): Promise<'' | 'unsupported' | 'stalled' | 'failed'> {
+  if (typeof OffscreenCanvas === 'undefined' || typeof createImageBitmap === 'undefined') return 'unsupported';
   const w = new Worker(new URL('./pose.worker.ts', import.meta.url));
-  const ready = await new Promise<string | null>((resolve) => {
-    const giveUp = setTimeout(() => resolve(null), 25000);
-    w.onerror = () => resolve(null);
-    w.onmessage = (e) => (e.data.type === 'ready' || e.data.type === 'failed') && (clearTimeout(giveUp), resolve(e.data.type === 'ready' ? e.data.delegate : null));
+  const ready = await new Promise<string | 'stalled' | null>((resolve) => {
+    let giveUp = 0;
+    const wait = () => { clearTimeout(giveUp); giveUp = window.setTimeout(() => resolve('stalled'), STALL_MS); };
+    wait();
+    w.onerror = () => (clearTimeout(giveUp), resolve(null));
+    w.onmessage = (e) => {
+      const m = e.data;
+      if (m.type === 'progress') return wait(), onStep(m.step === 'download' ? { step: 'download', got: m.got, total: m.total } : { step: 'start' });
+      if (m.type === 'ready' || m.type === 'failed') clearTimeout(giveUp), resolve(m.type === 'ready' ? m.delegate : null);
+    };
     w.postMessage({ type: 'init', origin: location.origin, timeOrigin: performance.timeOrigin, model, n: nPlayers });
   });
-  if (!ready) return w.terminate(), false;
+  if (!ready || ready === 'stalled') return w.terminate(), ready ? 'stalled' : 'failed';
   worker = w;
   camTrack = cam;
   perf.delegate = `${ready} worker`;
@@ -470,7 +488,7 @@ async function startWorker(video: HTMLVideoElement, model: string, cam: MediaStr
     waiting = frame;
   };
   video.requestVideoFrameCallback(tick);
-  return true;
+  return '';
 }
 
 // Two players, two trackers. The first worker keeps the GPU and takes player one's side of the picture; a second
@@ -534,11 +552,15 @@ export function record(seconds: number) {
 }
 
 // Fallback: the original main-thread path, for browsers where the worker route is not available.
-async function startInline(video: HTMLVideoElement, model: string) {
+async function startInline(video: HTMLVideoElement, model: string, onStep: (s: StartStep) => void) {
   const { FilesetResolver, PoseLandmarker } = await import('@mediapipe/tasks-vision');
-  const fileset = await FilesetResolver.forVisionTasks('/wasm');
+  let fileset = await FilesetResolver.forVisionTasks('/wasm');
+  // Fetched by hand for the same reason as in the worker: so the Start screen can show the bytes arriving.
+  const [wasm, bytes] = await fetchAll([String(fileset.wasmBinaryPath), model], (p) => onStep({ step: 'download', ...p }));
+  fileset = { ...fileset, wasmBinaryPath: URL.createObjectURL(new Blob([wasm as BlobPart], { type: 'application/wasm' })) };
+  onStep({ step: 'start' });
   const make = (delegate: 'GPU' | 'CPU') =>
-    PoseLandmarker.createFromOptions(fileset, { baseOptions: { modelAssetPath: model, delegate }, runningMode: 'VIDEO', numPoses: nPlayers })
+    PoseLandmarker.createFromOptions(fileset, { baseOptions: { modelAssetBuffer: bytes, delegate }, runningMode: 'VIDEO', numPoses: nPlayers })
       .then((l) => ((perf.delegate = `${delegate} inline`), l));
   landmarker = await make('GPU').catch(() => make('CPU'));
   let last = performance.now();

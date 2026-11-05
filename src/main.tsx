@@ -2,7 +2,8 @@
 // Driven by hand, touch or keyboard. A tap or click during a game pauses it and offers the way home.
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { createRoot } from 'react-dom/client';
-import { cutout, grip, measureDelay, perf, players, predict, record, setPlayers, sim, startPose, track, tuning } from './pose.ts';
+import { cutout, fallback, grip, measureDelay, perf, players, predict, record, setPlayers, sim, startPose, track, tuning, type StartStep } from './pose.ts';
+import { chunkFailed, reloadForUpdate } from './updated.ts';
 import { report } from './report.ts';
 import { DAY_GOAL, load, save, summary, type Session } from './stats.ts';
 import { BADGES, CHALLENGE_XP, STAGES, badgesOf, bestScore, bestStars, dailyChallenges, levelOf, sessionXp, starGoals, starsFor, totalStars, unlockedStage, variantOf, xpOf } from './meta.ts';
@@ -256,6 +257,38 @@ function Presence({ small }: { small: boolean }) {
   return <div className={small ? 'presence small' : 'presence'}><canvas ref={canvas} /><span ref={note} /></div>;
 }
 
+// What the Start screen says while the tracker comes up — the first start downloads ~15–21 MB.
+const mb = (bytes: number) => (bytes / 1e6).toFixed(1);
+function Loading({ at }: { at: StartStep }) {
+  const text = at.step === 'camera' ? '📷 Waiting for the camera…'
+    : at.step === 'start' ? '🧠 Starting the tracker…'
+    : `⬇️ Downloading the tracker… ${mb(at.got)}${at.total ? ` / ${mb(at.total)}` : ''} MB`;
+  const share = at.step === 'start' ? 1 : at.step === 'download' && at.total ? at.got / at.total : 0;
+  return (
+    <div className="loading" role="status">
+      <p className="num">{text}</p>
+      {/* No total yet (a compressed download): the bar sweeps instead of filling. */}
+      <span className={at.step === 'download' && !at.total ? 'meter busy' : 'meter'}><i style={{ width: `${100 * share}%` }} /></span>
+    </div>
+  );
+}
+
+// Keep the screen on while Romp is open: a tablet with a short sleep timeout would otherwise dim mid-round. The lock
+// is dropped whenever the page is hidden, so it is asked for again each time it comes back. Not every browser has it.
+function keepAwake() {
+  const ask = () => { if (document.visibilityState === 'visible') navigator.wakeLock?.request('screen').catch(() => {}); };
+  ask();
+  document.addEventListener('visibilitychange', ask);
+}
+
+// Said once, on the first Home screen, if tracking had to fall back to the page's own thread (slower, and it competes
+// with the game for every frame).
+const FALLBACK_NOTE = {
+  unsupported: 'This browser cannot track in the background, so tracking shares the game’s thread — expect it to feel slower.',
+  stalled: 'The tracker took too long to start in the background, so it is running on the game’s thread — it may feel slower. Reload to try again.',
+  failed: 'The background tracker would not start, so tracking shares the game’s thread — it may feel slower. Reload to try again.',
+} as const;
+
 function Fps() {
   const [, tick] = useState(0);
   useEffect(() => { const id = setInterval(() => tick((v) => v + 1), 1000); return () => clearInterval(id); }, []);
@@ -272,6 +305,8 @@ function App() {
   const video = useRef<HTMLVideoElement>(null);
   const [screen, setScreen] = useState<Screen>({ at: 'start' });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState<StartStep | null>(null);
+  const [note, setNote] = useState('');
   const [db, setDb] = useState(load);
   const [who, setWho] = useState([0, 1]); // profile index per player slot
   const [mode, setMode] = useState<Mode>('solo');
@@ -301,6 +336,7 @@ function App() {
   const go = (s: Screen) => {
     if (s.at === 'play') energy0.current = players.map((p) => p.energy);
     if (s.at === 'brief') s.game.Play.warm(); // fetch the renderer and this game's code while the player reads how to play
+    if (s.at !== 'home') setNote(''); // the fallback note is said once: it is gone after the first Home screen
     setScreen(s);
   };
   const chooseMode = (m: Mode) => { setMode(m); setPlayers(m === 'together' ? 2 : 1); };
@@ -308,14 +344,22 @@ function App() {
   const setTracker = (key: string, value: string) => { try { localStorage.setItem(key, value); } catch { /* private mode */ } location.reload(); };
   const toggleFx = () => { effects.on = !fx; setFx(!fx); try { localStorage.setItem('romp.fx', fx ? 'off' : 'on'); } catch { /* private mode */ } };
   const start = async () => {
+    if (loading) return; // a second tap while the tracker is still coming up
     // Fullscreen first: it needs the tap's user-activation, which is gone once the camera prompt and model load finish.
     try { void document.documentElement.requestFullscreen().catch(() => {}); } catch { /* not supported — play windowed */ }
     void audio().resume(); // same reason: games are later started by a hand-dwell, which is not a user gesture
     void loadAudio(); // samples decode in the background; until then sounds fall back to synth blips
-    try { await startPose(video.current!); } catch (e) {
+    setError('');
+    setLoading({ step: 'camera' });
+    try { await startPose(video.current!, setLoading); } catch (e) {
+      setLoading(null);
+      if (chunkFailed(e) && reloadForUpdate()) return; // this tab is older than the server's build: its tracker code is gone
       return setError(`Camera or tracker failed: ${(e as Error).message}. Allow the camera — and if this is the http://192.168… address, add it under chrome://flags → “Insecure origins treated as secure” first.`);
     }
     setTimeout(() => report('tracker'), 15000); // once the numbers have settled
+    keepAwake();
+    if (fallback.why) setNote(FALLBACK_NOTE[fallback.why]);
+    setLoading(null);
     go({ at: 'home' });
   };
   // Ten seconds of raw tracker output, sent to the build machine: the filters get tuned against the real player.
@@ -394,7 +438,7 @@ function App() {
           <div className="row" style={{ justifyContent: 'center' }}>
             {['📺 Stand the tablet under the TV', '🚶 Step back till your whole body shows', '✊ Point at a button, close your fist to press'].map((t) => <span className="goal" key={t}>{t}</span>)}
           </div>
-          <button className="primary giant" onClick={start}>Start</button>
+          {loading ? <Loading at={loading} /> : <button className="primary giant" onClick={start}>Start</button>}
           {error && <p className="error">{error}</p>}
         </div>
       )}
@@ -422,6 +466,7 @@ function App() {
                 </div>
               ))}
               {clash && <p className="error">Pick two different players.</p>}
+              {note && <p className="note">{note}</p>}
             </div>
             <div className="panel">
               <h2>🎯 Daily quests · {name(0)}</h2>

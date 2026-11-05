@@ -2,6 +2,7 @@
 // Classic worker on purpose: MediaPipe's loader pulls its wasm glue in with importScripts(), which module
 // workers do not have. Vite builds `new Worker(new URL(...))` without a type as exactly that.
 import { CUT } from './cut.ts';
+import { fetchAll } from './download.ts';
 import { FilesetResolver, HandLandmarker, PoseLandmarker, type MPMask, type NormalizedLandmark } from '@mediapipe/tasks-vision';
 
 type Fileset = Awaited<ReturnType<typeof FilesetResolver.forVisionTasks>>;
@@ -167,10 +168,15 @@ self.onmessage = async (e: MessageEvent) => {
       origin = m.origin; nPlayers = m.n;
       clockShift = performance.timeOrigin - m.timeOrigin;
       fileset = await FilesetResolver.forVisionTasks(`${origin}/wasm`);
+      // The runtime and the model are fetched here, counted, and handed over in memory: the page shows the download
+      // moving, and only gives up on a tracker that has stopped making progress (see startWorker).
+      const [wasm, model] = await fetchAll([String(fileset.wasmBinaryPath), origin + m.model], (p) => postMessage({ type: 'progress', step: 'download', ...p }));
+      fileset = { ...fileset, wasmBinaryPath: URL.createObjectURL(new Blob([wasm as BlobPart], { type: 'application/wasm' })) };
+      postMessage({ type: 'progress', step: 'start' });
       liteIsMain = String(m.model).includes('lite');
       const tryBoth = m.cpu ? <T,>(make: (delegate: 'GPU' | 'CPU') => Promise<T>) => make('CPU').then((v) => ({ v, delegate: 'CPU' })) : gpuThenCpu;
       const made = await tryBoth((delegate) => PoseLandmarker.createFromOptions(fileset, {
-        baseOptions: { modelAssetPath: origin + m.model, delegate }, runningMode: 'VIDEO', numPoses: m.n,
+        baseOptions: { modelAssetBuffer: model, delegate }, runningMode: 'VIDEO', numPoses: m.n,
         ...(delegate === 'GPU' ? { canvas: glCanvas } : {}),
       }));
       landmarker = made.v;
