@@ -23,7 +23,7 @@ const mine = (sessions: Session[], who: string) => sessions.filter((s) => s.who 
 const rounds = (sessions: Session[], who: string, game: string, stage: number, variant: string) =>
   mine(sessions, who).filter((s) => s.game === game && (s.stage ?? 1) === stage && (s.variant ?? '') === variant);
 export const bestStars = (sessions: Session[], who: string, game: string, stage: number, variant = '') => Math.max(0, ...rounds(sessions, who, game, stage, variant).map((s) => s.stars ?? 0));
-export const bestScore = (sessions: Session[], who: string, game: string, stage: number, variant = '') => Math.max(0, ...rounds(sessions, who, game, stage, variant).map((s) => s.score));
+export const bestScore = (sessions: Session[], who: string, game: string, stage: number, variant = '') => Math.max(0, ...rounds(sessions, who, game, stage, variant).map((s) => Math.round(s.score))); // whole numbers, even for rows saved before scores were rounded
 // Stage n opens once stage n-1 has two stars — counted per variant, so an easy mode cannot open a hard one's stages.
 export function unlockedStage(sessions: Session[], who: string, game: string, variant = '') {
   let stage = 1;
