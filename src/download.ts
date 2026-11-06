@@ -6,6 +6,10 @@
 // counts its decompressed bytes, so its Content-Length is no use as a total: that file's size stays unknown.
 export type Progress = { got: number; total: number };
 
+// How long a download may go without a single new byte before it is given up on. A slow connection that is still
+// delivering is never abandoned; one that has stalled is.
+export const STALL_MS = 25000;
+
 export async function fetchAll(urls: string[], onProgress: (p: Progress) => void) {
   const got = urls.map(() => 0), size: (number | null | undefined)[] = urls.map(() => undefined);
   let last = 0;
@@ -16,18 +20,26 @@ export async function fetchAll(urls: string[], onProgress: (p: Progress) => void
     onProgress({ got: got.reduce((a, b) => a + b, 0), total: size.every((s) => s) ? (size as number[]).reduce((a, b) => a + b, 0) : 0 });
   };
   const one = async (url: string, i: number) => {
-    const res = await fetch(url);
-    if (!res.ok || !res.body) throw new Error(`${url}: HTTP ${res.status}`);
-    const length = Number(res.headers.get('content-length'));
-    size[i] = !res.headers.get('content-encoding') && length > 0 ? length : null;
-    const parts: Uint8Array[] = [], reader = res.body.getReader();
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      parts.push(value);
-      got[i] += value.length;
-      tell();
-    }
+    const stop = new AbortController();
+    let timer = 0;
+    const alive = () => { clearTimeout(timer); timer = setTimeout(() => stop.abort(new Error('the tracker download stalled')), STALL_MS) as unknown as number; };
+    alive();
+    const parts: Uint8Array[] = [];
+    try {
+      const res = await fetch(url, { signal: stop.signal });
+      if (!res.ok || !res.body) throw new Error(`${url}: HTTP ${res.status}`);
+      const length = Number(res.headers.get('content-length'));
+      size[i] = !res.headers.get('content-encoding') && length > 0 ? length : null;
+      const reader = res.body.getReader();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        alive();
+        parts.push(value);
+        got[i] += value.length;
+        tell();
+      }
+    } finally { clearTimeout(timer); }
     const bytes = new Uint8Array(got[i]);
     let at = 0;
     for (const p of parts) bytes.set(p, at), (at += p.length);

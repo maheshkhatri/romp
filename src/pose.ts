@@ -1,7 +1,7 @@
 // Camera → MediaPipe Pose → up to two players with body-relative hands.
 // Games read the mutable `players` array every frame; nothing here touches React.
 import type { NormalizedLandmark, PoseLandmarker } from '@mediapipe/tasks-vision';
-import { fetchAll, type Progress } from './download.ts';
+import { STALL_MS, fetchAll, type Progress } from './download.ts';
 import { reloadForUpdate } from './updated.ts';
 
 // x, y: -1..1 inside the player's own zone, y up. vx, vy: zone-units per second, measured at camera rate.
@@ -396,9 +396,7 @@ export function frameClock() {
 // worker, the page never touches a pixel: no copy, and no dependence on a main thread that is busy drawing the game.
 // Otherwise frames are copied out of the <video> as ImageBitmaps, one in the tracker and the newest waiting behind it.
 let worker: Worker | undefined;
-// How long the worker may go without any sign of progress (a downloaded chunk, a step done) before it is given up on.
-// A slow connection that is still delivering bytes is never abandoned; one that has stalled is.
-const STALL_MS = 25000;
+// The worker is given up on after the same STALL_MS without any sign of progress (a downloaded chunk, a step done).
 // Resolves to '' once the worker is tracking, or to why it is not (and the page falls back to tracking inline).
 async function startWorker(video: HTMLVideoElement, model: string, cam: MediaStreamTrack, onStep: (s: StartStep) => void): Promise<'' | 'unsupported' | 'stalled' | 'failed' | 'gone'> {
   if (typeof OffscreenCanvas === 'undefined' || typeof createImageBitmap === 'undefined') return 'unsupported';
