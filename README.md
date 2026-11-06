@@ -1,5 +1,7 @@
 # Romp
 
+Romp by [@yem.cube on Instagram](https://www.instagram.com/yem.cube)
+
 **Your body is the controller.** 17 camera-tracked motion games (fitness, rhythm, pose and arcade) that run in Chrome on
 an old Android tablet and play on your TV over a USB-C → HDMI cable. No console, no subscription, no app store.
 
@@ -25,7 +27,8 @@ npm run play        # serves dist/ on your network, port 4173
 
 The tablet opens `http://<your-computer's-ip>:4173`. That is plain http, so Chrome blocks the camera until you open
 `chrome://flags/#unsafely-treat-insecure-origin-as-secure` on the tablet, add that address, set it to Enabled and relaunch.
-Any static host with HTTPS works as well (Netlify, Cloudflare Pages, GitHub Pages at a domain root): publish `dist/`.
+Any static host with HTTPS works as well (Netlify, Cloudflare Pages, GitHub Pages): publish `dist/`. Under a subpath, build with it
+set: `BASE_PATH=/romp/ npm run build` (`.github/workflows/pages.yml` does this for `https://<user>.github.io/romp/`).
 
 Then: tablet under the TV, landscape, front camera on the room; TV picture mode **Game** and motion smoothing off; stand
 back till your whole body is in view; point and close your fist to press. Home → Tracking → **Measure** once per setup.

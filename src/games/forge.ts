@@ -10,6 +10,7 @@ import { hardness } from '../meta.ts';
 import { squatDepth } from '../reps.ts';
 import { FLOOR, ROOM, clearing, fade, fitted, flat, glowAs, glowLook, lit, node, shade, shapes, show, tint, type View } from '../engine.ts';
 import { bestLine, bursts as makeBursts, figure, hitSound, hitStop, music, round, say, sfx, zoneX, type Game } from '../kit.ts';
+import { ROOT } from '../base.ts';
 
 const ROUND = 75, WINDOW = 2.6, QUENCH = 3.5;
 const HEAT_HEX = ['#3f3f46', '#7f1d1d', '#dc2626', '#fb923c', '#fde047', '#fffbeb']; // cold steel → white hot
@@ -18,7 +19,7 @@ type Smithy = { x: number; who: number[]; phase: 'heat' | 'strike' | 'quench'; h
 export const view: View = ROOM;
 
 export default async function forge({ n, stage, team, best, onEnd, hud, scene }: Game) {
-  const hard = hardness(stage), C = '/assets/camp/';
+  const hard = hardness(stage), C = `${ROOT}/assets/camp/`;
   // A smithy at the edge of the woods at dusk: a hut behind, the forge fire, the anvil, a quench barrel, tools about.
   await clearing(scene, true);
   const [anvil, hammerModel, fire, hut, barrel, grind, chest, bench] = await Promise.all([fitted(C + 'workbench-anvil.glb', 2.7, true), fitted(C + 'tool-hammer-upgraded.glb', 2.4), fitted(C + 'campfire-pit.glb', 2.6, true), fitted(C + 'structure.glb', 10, true), fitted(C + 'barrel-open.glb', 1.9, true), fitted(C + 'workbench-grind.glb', 2.6, true), fitted(C + 'chest.glb', 1.8, true), fitted(C + 'workbench.glb', 2.8, true)]);

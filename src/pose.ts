@@ -3,6 +3,7 @@
 import type { NormalizedLandmark, PoseLandmarker } from '@mediapipe/tasks-vision';
 import { STALL_MS, fetchAll, type Progress } from './download.ts';
 import { reloadForUpdate } from './updated.ts';
+import { ROOT } from './base.ts';
 
 // x, y: -1..1 inside the player's own zone, y up. vx, vy: zone-units per second, measured at camera rate.
 // t: when the camera frame behind this reading was captured (performance.now clock) — the renderer predicts forward from it.
@@ -425,7 +426,7 @@ async function startWorker(video: HTMLVideoElement, model: string, cam: MediaStr
       if (m.type === 'progress') return wait(), onStep(m.step === 'download' ? { step: 'download', got: m.got, total: m.total } : { step: 'start' });
       if (m.type === 'ready' || m.type === 'failed') clearTimeout(giveUp), resolve(m.type === 'ready' ? m.delegate : null);
     };
-    w.postMessage({ type: 'init', origin: location.origin, timeOrigin: performance.timeOrigin, model, n: nPlayers });
+    w.postMessage({ type: 'init', origin: location.origin + ROOT, timeOrigin: performance.timeOrigin, model, n: nPlayers });
   });
   if (!ready || ready === 'stalled' || ready === 'gone') return w.terminate(), ready === 'stalled' || ready === 'gone' ? ready : 'failed';
   worker = w;
@@ -534,7 +535,7 @@ function pairUp(on: boolean) {
     track.fps2 += (1000 / (now - last) - track.fps2) * 0.1; track.model2 += (m.ms - track.model2) * 0.1;
     last = now;
   };
-  w.postMessage({ type: 'init', origin: location.origin, timeOrigin: performance.timeOrigin, model: '/models/pose_landmarker_lite.task', n: 1, cpu: true });
+  w.postMessage({ type: 'init', origin: location.origin + ROOT, timeOrigin: performance.timeOrigin, model: '/models/pose_landmarker_lite.task', n: 1, cpu: true });
 }
 
 // A square around the pointing hand's palm (1.8 shoulder-widths across: the whole hand with margin, whatever the
@@ -568,9 +569,9 @@ export function record(seconds: number) {
 // Fallback: the original main-thread path, for browsers without the worker route or a worker that stalled or failed (see startPose).
 async function startInline(video: HTMLVideoElement, model: string, onStep: (s: StartStep) => void) {
   const { FilesetResolver, PoseLandmarker } = await import('@mediapipe/tasks-vision');
-  let fileset = await FilesetResolver.forVisionTasks('/wasm');
+  let fileset = await FilesetResolver.forVisionTasks(`${ROOT}/wasm`);
   // Fetched by hand for the same reason as in the worker: so the Start screen can show the bytes arriving.
-  const [wasm, bytes] = await fetchAll([String(fileset.wasmBinaryPath), model], (p) => onStep({ step: 'download', ...p }));
+  const [wasm, bytes] = await fetchAll([String(fileset.wasmBinaryPath), ROOT + model], (p) => onStep({ step: 'download', ...p }));
   fileset = { ...fileset, wasmBinaryPath: URL.createObjectURL(new Blob([wasm as BlobPart], { type: 'application/wasm' })) };
   onStep({ step: 'start' });
   const make = (delegate: 'GPU' | 'CPU') =>

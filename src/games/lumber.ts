@@ -11,6 +11,7 @@ import { hardness } from '../meta.ts';
 import { chopper } from '../reps.ts';
 import { FLOOR, ROOM, clearing, clippable, fitted, flat, glowLook, lit, node, setClip, shade, shapes, show, tint, type View } from '../engine.ts';
 import { bestLine, bursts as makeBursts, comboText, hitSound, hitStop, music, round, say, sfx, zoneHalf, zoneX, type Game } from '../kit.ts';
+import { ROOT } from '../base.ts';
 
 const ROUND = 60, KINDLING = 10, BLOCK_Y = -2.5, LOG_H = 2.3, GRAVITY = -15;
 const q = new Quat(), turn = new Quat(), AXIS = new Vec3(0, 0, 1), TIP = new Vec3(1, 0, 0);
@@ -19,9 +20,9 @@ type Log = { state: 'idle' | 'in' | 'ready' | 'split'; dir: number; need: number
 export const view: View = ROOM;
 
 export default async function lumber({ n, stage, team, best, onEnd, hud, scene }: Game) {
-  const hard = hardness(stage), C = '/assets/camp/';
+  const hard = hardness(stage), C = `${ROOT}/assets/camp/`;
   await clearing(scene, false);
-  const [stump, axeModel, plank, tent, fire, pileLogs] = await Promise.all([fitted(C + 'tree-trunk.glb', BLOCK_Y - FLOOR, true), fitted(C + 'tool-axe-upgraded.glb', 2.6), fitted(C + 'resource-planks.glb', 1.5, true), fitted(C + 'tent.glb', 5.5, true), fitted(C + 'campfire-pit.glb', 2.2, true), fitted('/assets/nature/log_stack.glb', 3, true)]);
+  const [stump, axeModel, plank, tent, fire, pileLogs] = await Promise.all([fitted(C + 'tree-trunk.glb', BLOCK_Y - FLOOR, true), fitted(C + 'tool-axe-upgraded.glb', 2.6), fitted(C + 'resource-planks.glb', 1.5, true), fitted(C + 'tent.glb', 5.5, true), fitted(C + 'campfire-pit.glb', 2.2, true), fitted(`${ROOT}/assets/nature/log_stack.glb`, 3, true)]);
   const put = (template: Entity, x: number, y: number, z: number, ry = 0) => { const e = template.clone() as Entity; e.setLocalPosition(x, y, z); e.setLocalEulerAngles(0, ry, 0); scene.root.addChild(e); return e; };
   put(tent, n === 1 ? -9 : 0, FLOOR, -9, 25); put(fire, n === 1 ? 7.5 : 0, FLOOR, -5); put(pileLogs, n === 1 ? -6.5 : -0.5, FLOOR, -3.5, 70);
   node(scene.root, shapes.quad(2, 2), glowLook('#fb923c', 0.8), [n === 1 ? 7.5 : 0, FLOOR + 0.9, -4.9]).setLocalScale(1.6, 2.0, 1); // the campfire's light
