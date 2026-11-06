@@ -319,6 +319,7 @@ export async function startPose(video: HTMLVideoElement, onStep: (s: StartStep) 
   await video.play();
   track.camera = await tuneCamera(cam, video);
   const model = `/models/pose_landmarker_${tuning.model}.task`;
+  fallback.why = ''; // a retry after a failed Start must not keep the last attempt's reason
   const why = await startWorker(video, model, cam, onStep).catch(() => 'failed' as const);
   if (why === 'gone' && reloadForUpdate()) return new Promise<never>(() => {});
   if (why) { fallback.why = why === 'gone' ? 'failed' : why; await startInline(video, model, onStep); }
