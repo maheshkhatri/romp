@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, type FC } from 'react';
 import { music } from './audio.ts';
 import type { GameModule, GameProps, Hud } from './kit.ts';
+import { reloadForUpdate } from './updated.ts';
 export { audio, jingle, say, sfx } from './audio.ts';
 export { PLAYER_COLORS, effects, paceSummary } from './pace.ts';
 export type { GameProps } from './kit.ts';
@@ -15,7 +16,7 @@ export const Shell = createContext({ paused: false, pause: () => {} });
 // `warm()` starts fetching both ahead of time (the shell calls it on the briefing screen), so "Play" never waits on the network.
 export type Playable = FC<GameProps> & { warm: () => void };
 export const play = (load: () => Promise<GameModule>): Playable =>
-  Object.assign((props: GameProps) => <Stage {...props} load={load} />, { warm: () => { void import('./engine.ts'); void load(); } });
+  Object.assign((props: GameProps) => <Stage {...props} load={load} />, { warm: () => { import('./engine.ts').catch(() => {}); load().catch(() => {}); } }); // a failure here is met again, and handled, when the round mounts
 
 function Stage({ n, stage, mode, team, best, onEnd, load }: GameProps & { load: () => Promise<GameModule> }) {
   const engine = useRef<typeof import('./engine.ts') | null>(null), paused = useRef(false);
@@ -52,8 +53,14 @@ function Stage({ n, stage, mode, team, best, onEnd, load }: GameProps & { load: 
     let gone = false;
     const cleanups: (() => void)[] = [];
     void (async () => {
-      const [pc, game] = await Promise.all([import('./engine.ts'), load()]);
-      if (gone) return;
+      // Neither chunk loading means this tab is running a build the server no longer has (see updated.ts).
+      const loaded = await Promise.all([import('./engine.ts'), load()]).catch((err) => {
+        console.error('game failed to load', err);
+        if (!reloadForUpdate()) hud.banner('Could not load the game', 1e9);
+        return null;
+      });
+      if (gone || !loaded) return;
+      const [pc, game] = loaded;
       engine.current = pc;
       pc.mount(els.current.stage!);
       const tick = await game.default({ n, stage, mode, team, best, hud, scene: pc.begin(game.view), onEnd: (scores, notes) => { if (!gone) finish.current(scores, notes); }, cleanup: (fn) => cleanups.push(fn) });

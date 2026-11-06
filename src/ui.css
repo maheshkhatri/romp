@@ -192,3 +192,12 @@ th { color: var(--ink-dim); font-weight: 500; font-size: 1rem; } td.lead, .lead 
 .presence span:empty { display: none; }
 .presence.small { opacity: 0.65; }
 .presence.small canvas { width: 5.6rem; height: 3.15rem; }
+
+/* ---- Start: the tracker coming up; a once-only note on Home; the reload after an update ---- */
+.loading { display: grid; gap: 0.8rem; justify-items: center; width: min(32rem, 90vw); }
+.loading .meter { grid-column: 1; position: relative; display: block; width: 100%; height: 0.7rem; border-radius: 1rem; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
+.loading .meter i { display: block; height: 100%; border-radius: inherit; background: var(--cyan); transition: width 0.2s; animation: none; }
+.loading .meter.busy i { position: absolute; width: 30% !important; animation: sweep 1.2s ease-in-out infinite alternate; }
+@keyframes sweep { from { left: 0; } to { left: 70%; } }
+.note { color: var(--ink-soft); background: rgba(61, 225, 255, 0.12); border: 1px solid rgba(61, 225, 255, 0.4); border-radius: 1rem; padding: 0.8rem 1.2rem; font-size: 1.1rem; }
+.updated { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: rgba(20, 9, 58, 0.92); color: var(--ink); font-size: 2.4rem; font-weight: 600; }
