@@ -202,11 +202,12 @@ const resetFilters = (F: ReturnType<typeof mkFilters>) =>
 const prev: (NormalizedLandmark[] | null)[] = [null, null];
 const lastApply = [0, 0], strangers = [0, 0]; // strangers: readings in a row that belonged to the other side
 // Each player's own standing shoulder height: learned while they stand, re-learned if they walk to a new spot.
-const stand = [{ y: NaN, x: NaN, since: 0, ratio: 0 }, { y: NaN, x: NaN, since: 0, ratio: 0 }];
+// span: their standing shoulders-to-knees height, in shoulder-widths · bent: when their shape last said "squatting", not "moved".
+const stand = [0, 1].map(() => ({ y: NaN, x: NaN, since: 0, ratio: 0, span: NaN, bent: 0 }));
 // `now` is when the frame was captured, so every reading carries its true age and speeds use true frame spacing.
 // With two players each has a tracker of their own, looking at their own side of the picture (see startWorker): a
 // reading then arrives for one `seat` at a time, in its own rhythm. With one player, one tracker sees the whole frame.
-function apply(poses: NormalizedLandmark[][], aspect: number, now = performance.now(), seat = -1) {
+export function apply(poses: NormalizedLandmark[][], aspect: number, now = performance.now(), seat = -1) { // exported for check.ts
   const slots = seat < 0 ? assignSlots(poses, aspect, nPlayers) : [];
   if (seat >= 0) {
     // A tracker only speaks for its own side: a body whose shoulders are past the middle belongs to the other seat
@@ -221,7 +222,7 @@ function apply(poses: NormalizedLandmark[][], aspect: number, now = performance.
     lastApply[i] = now;
     const lm = slots[i], F = filters[i], st = stand[i];
     pl.present = !!lm;
-    if (!lm) return void ((prev[i] = null), (st.y = st.x = NaN), (st.ratio = 0), resetFilters(F));
+    if (!lm) return void ((prev[i] = null), (st.y = st.x = st.span = NaN), (st.ratio = 0), resetFilters(F));
 
     // The shoulder frame is smoothed harder than the hands: its noise is multiplied into every hand reading.
     const raw = bodyFrame(lm, aspect);
@@ -252,8 +253,19 @@ function apply(poses: NormalizedLandmark[][], aspect: number, now = performance.
 
     if (Number.isNaN(st.y)) st.y = raw.y;
     const lift = (st.y - raw.y) / f.sw;
-    if (Math.abs(lift) < tuning.standBand) { st.y += (raw.y - st.y) * 0.02; st.since = now; }
-    else if (now - st.since > 4000) st.y = raw.y; // out of band for 4s = they moved, not a 4s squat
+    // Shoulders down to knees, in shoulder-widths: the body's own height. A step closer or further leaves it alone; a squat does not.
+    const span = seen(lm[25]) && seen(lm[26]) ? ((lm[25].y + lm[26].y) / 2 - raw.y) / f.sw : NaN;
+    if (Math.abs(lift) < tuning.standBand) {
+      st.y += (raw.y - st.y) * 0.02; st.since = now;
+      if (!Number.isNaN(span)) st.span = Number.isNaN(st.span) ? span : st.span + (span - st.span) * 0.02;
+    } else {
+      // Out of the band: either a squat — the body is shorter by most of what the shoulders fell (Forge wants holds of up to
+      // ~8s) — or a step to a spot where the shoulders sit at another height in the picture, with the body the same shape.
+      // So re-learn after 4s out only once the shape has said "moved" for a second. Knees out of sight: the 4s rule alone.
+      // Past 15s the clock wins regardless: no game asks for a squat that long, so the shape reading must be off.
+      if (lift < 0 && st.span - span > 0.5 * -lift) st.bent = now; // false whenever either is NaN
+      if ((now - st.since > 4000 && now - st.bent > 1000) || now - st.since > 15000) { st.y = raw.y; st.span = span; }
+    }
     pl.lift = F.lift.next(lift, dt);
     pl.liftV = F.lift.dx;
     pl.lean = F.lean.next(leanOf(lm, aspect), dt);

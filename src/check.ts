@@ -1,6 +1,7 @@
 // The one runnable check: `npm run check`. Fails if the input maths or the streak logic breaks.
 import assert from 'node:assert/strict';
-import { assignSlots, frameClock, handInZone, isAir, isLow, palm, predict, leanOf, limbAngles, OneEuro, poseMatch, tuning } from './pose.ts';
+import type { NormalizedLandmark } from '@mediapipe/tasks-vision';
+import { apply, assignSlots, frameClock, handInZone, isAir, isLow, palm, predict, leanOf, limbAngles, OneEuro, players, poseMatch, tuning } from './pose.ts';
 import { summary, DAY_GOAL } from './stats.ts';
 import { chart } from './chart.ts';
 import { SONGS } from './song.ts';
@@ -150,6 +151,56 @@ assert.ok(daily[0].have === Math.min(daily[0].goal, 120));
   assert.ok(isLow(at(-0.3, -2.5)) && !isLow(at(-0.3, -0.3)) && !isLow(at(-0.1, -2.5)) && isLow(at(-0.7, 0)));
   assert.ok(isAir(at(0.15, 2.5)) && !isAir(at(0.15, 0.4)) && !isAir(at(0.05, 3)) && isAir(at(0.4, -1)));
   assert.ok(!isAir(at(-0.4, 3))); // driving up out of a squat is not a jump
+}
+
+// Standing height through the whole tracker: a long, deep squat is still a squat at the end of it, and standing up out of
+// it is not a jump — but a player who really steps to a new spot still has their standing height re-learned.
+{
+  // A pinhole camera at belly height: a body point (X, Y) in shoulder-widths, y down, `Z` away from the lens. `drop` is a squat,
+  // in shoulder-widths: the shoulders sink by all of it, the hips by most, the knees a little, the ankles stay planted.
+  let seed = 3; const noise = () => ((seed = (seed * 16807) % 2147483647) / 2147483647 - 0.5) * 0.004; // ±0.025 shoulder-widths
+  const person = (Z: number, drop = 0) => {
+    const lm = Array.from({ length: 33 }, () => ({ x: 0, y: 0, z: 0, visibility: 1 }));
+    const put = (k: number, X: number, Y: number) => (lm[k] = { x: 0.5 + (0.08 * X) / Z + noise(), y: 0.5 + (0.08 * Y) / Z + noise(), z: 0, visibility: 1 });
+    for (let k = 0; k < 33; k++) put(k, 0, -2 + drop); // everything not placed below sits on the shoulder line
+    put(0, 0, -2.8 + drop);
+    [-1, 1].forEach((side, h) => {
+      put(11 + h, side * 0.5, -2 + drop); put(13 + h, side * 0.7, -1.3 + drop);
+      for (const k of [15, 17, 19]) put(k + h, side * 0.9, -0.5 + drop);
+      put(23 + h, side * 0.3, -0.5 + drop * 0.85); put(25 + h, side * 0.32, 0.7 + drop * 0.15); put(27 + h, side * 0.35, 1.8); put(31 + h, side * 0.45, 1.9);
+    });
+    return lm;
+  };
+  const pl = players[0];
+  let now = 10_000;
+  const play = (seconds: number, at: (k: number) => NormalizedLandmark[], each?: (k: number) => void) => {
+    for (let f = 0, n = Math.round(seconds * 30); f < n; f++) { now += 1000 / 30; apply([at(f / n)], 1, now); each?.(f / n); }
+  };
+  play(3, () => person(1)); // stand: the tracker learns this player's standing height
+  assert.ok(Math.abs(pl.lift) < 0.1, `standing reads ${pl.lift}`);
+  play(0.5, (k) => person(1, 0.9 * k)); // down…
+  let shallowest = -Infinity, jumped = false;
+  play(6, () => person(1, 0.9), (k) => { if (k > 0.05) shallowest = Math.max(shallowest, pl.lift); }); // …a steady 6s squat with thighs level…
+  assert.ok(squatDepth(shallowest) > 0.8, `a 6s squat faded to lift ${shallowest.toFixed(2)} (depth ${squatDepth(shallowest).toFixed(2)})`);
+  play(0.6, (k) => person(1, 0.9 * (1 - k)), () => (jumped ||= isAir(pl))); // …and up again
+  play(2, () => person(1), () => (jumped ||= isAir(pl)));
+  assert.ok(!jumped && Math.abs(pl.lift) < tuning.standBand, `standing up out of a long squat read as a jump (lift ${pl.lift.toFixed(2)})`);
+  // Two steps toward the TV: the shoulders rise in the picture, which reads as a jump until the tracker sees it is not one.
+  play(1, (k) => person(1 - 0.25 * k));
+  play(1, () => person(0.75));
+  assert.ok(pl.lift > tuning.standBand, `stepping closer should first read as higher (lift ${pl.lift.toFixed(2)})`);
+  play(5, () => person(0.75));
+  assert.ok(Math.abs(pl.lift) < tuning.standBand, `a real step to a new spot was not re-learned (lift ${pl.lift.toFixed(2)})`);
+  play(0.5, (k) => person(0.75, 0.9 * k)); // and a squat from the new spot reads as one
+  play(1, () => person(0.75, 0.9));
+  assert.ok(squatDepth(pl.lift) > 0.8, `squat after the step reads lift ${pl.lift.toFixed(2)}`);
+  // A dropped frame mid-squat re-learns the squat as standing height; standing up from it reads higher, never as a squat.
+  now += 1000 / 30; apply([], 1, now);
+  play(1, () => person(0.75, 0.9));
+  play(0.5, (k) => person(0.75, 0.9 * (1 - k)));
+  play(4.5, () => person(0.75));
+  assert.ok(Math.abs(pl.lift) < tuning.standBand, `standing height learned mid-squat was not re-learned (lift ${pl.lift.toFixed(2)})`);
+  apply([], 1, now + 33); // gone: leave the tracker as it was found
 }
 
 // Pointing at a button: drift over at a walking pace, then hold. The menu pointer (capped lead) must not be noisier
