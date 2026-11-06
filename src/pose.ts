@@ -553,7 +553,7 @@ export function record(seconds: number) {
   return new Promise<unknown[]>((resolve) => setTimeout(() => { resolve(tape ?? []); tape = null; }, seconds * 1000));
 }
 
-// Fallback: the original main-thread path, for browsers where the worker route is not available.
+// Fallback: the original main-thread path, for browsers without the worker route or a worker that stalled or failed (see startPose).
 async function startInline(video: HTMLVideoElement, model: string, onStep: (s: StartStep) => void) {
   const { FilesetResolver, PoseLandmarker } = await import('@mediapipe/tasks-vision');
   let fileset = await FilesetResolver.forVisionTasks('/wasm');
